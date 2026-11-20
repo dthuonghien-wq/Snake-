@@ -97,4 +97,22 @@ stB.onclick=start;
 document.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();const[x,y]=b.dataset.d.split(',').map(Number);turn(x,y)}));
 document.addEventListener('keydown',e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(m){e.preventDefault();turn(...m)}});
 let tx,ty;wrap.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});
-wrap.addEventListener('touchmove',e=>e.preventDefault(),{passive
+wrap.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+wrap.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;Math.abs(dx)>Math.abs(dy)?turn(Math.sign(dx),0):turn(0,Math.sign(dy))});
+reset();
+let last=performance.now(),T=0;
+function loop(now){const dt=Math.min((now-last)/1000,0.05);last=now;T+=dt;
+if(running){acc+=dt*1000;while(running&&acc>=speed){acc-=speed;step()}}
+const k=running?Math.min(acc/speed,1):1;
+const pos=i=>{const p=prev[i],c=cells[i];return[p.x+(c.x-p.x)*k-H,p.y+(c.y-p.y)*k-H]};
+const[hx,hz]=pos(0);head.position.set(hx,0.45+Math.sin(T*6)*0.04,hz);
+const ta=Math.atan2(dir.x,dir.y);let da=ta-head.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));head.rotation.y+=da*Math.min(1,dt*18);
+body.forEach((m,i)=>{const[x,z]=pos(i+1);const s=0.9+0.07*Math.sin(T*8-i*0.7);m.position.set(x,0.4,z);m.scale.set(s,s*0.85,s)});
+food.position.set(fpos.x-H,0.45+Math.sin(T*3)*0.12,fpos.y-H);food.rotation.y+=dt*2;
+for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.v.y-=12*dt;p.position.addScaledVector(p.v,dt);p.rotation.x+=dt*6;p.life-=dt*1.4;p.scale.setScalar(Math.max(p.life,0.01));if(p.life<=0){S.remove(p);parts.splice(i,1)}}
+cam.position.x=Math.sin(T*0.3)*0.6;cam.lookAt(0,0,0.8);
+R.render(S,cam);requestAnimationFrame(loop)}
+requestAnimationFrame(loop)}
+</script>
+</body>
+</html>

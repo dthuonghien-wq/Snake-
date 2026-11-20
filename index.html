@@ -12,17 +12,19 @@
 <title>Rắn 3D</title>
 <style>
 body{margin:0;background:#1c1c1a;color:#fff;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:14px;padding:calc(env(safe-area-inset-top) + 16px) 12px 24px;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:420px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:420px}
 .stat{background:#2c2c2a;border-radius:10px;padding:8px 12px}
 .stat small{color:#b4b2a9;font-size:13px}
 .stat div{font-size:22px;font-weight:600}
 #wrap{position:relative;width:100%;max-width:420px;aspect-ratio:1;touch-action:none}
 #wrap canvas{display:block;width:100%;height:100%;border-radius:12px}
 #ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.45);border-radius:12px;z-index:2}
-#msg{font-size:17px;font-weight:600;text-align:center;padding:0 16px}
+#msg{font-size:17px;font-weight:600;text-align:center;padding:0 16px;line-height:1.5}
+#lvb{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.7);opacity:0;transform:scale(.8);transition:all .3s;pointer-events:none;z-index:1}
 button{font-size:22px;border:0;border-radius:10px;background:#3a3a37;color:#fff;touch-action:manipulation}
 button:active{background:#55554f}
 #st{font-size:17px;padding:10px 26px;background:#1D9E75}
+#mu{font-size:20px;background:#2c2c2a}
 .pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,56px);gap:8px}
 </style>
 </head>
@@ -30,15 +32,17 @@ button:active{background:#55554f}
 <div class="stats">
   <div class="stat"><small>Điểm</small><div id="sc">0</div></div>
   <div class="stat"><small>Kỷ lục</small><div id="bs">0</div></div>
+  <div class="stat"><small>Màn</small><div id="lv">1</div></div>
 </div>
 <div id="wrap">
+  <div id="lvb"></div>
   <div id="ov">
-    <div id="msg">Vuốt hoặc bấm nút để điều khiển</div>
+    <div id="msg">Ăn táo để dài ra, né những tảng đá.<br>Táo vàng được +3 điểm!</div>
     <button id="st">Bắt đầu</button>
   </div>
 </div>
 <div class="pad">
-  <span></span><button data-d="0,-1">▲</button><span></span>
+  <span></span><button data-d="0,-1">▲</button><button id="mu">🔊</button>
   <button data-d="-1,0">◀</button><button data-d="0,1">▼</button><button data-d="1,0">▶</button>
 </div>
 <script>
@@ -52,67 +56,7 @@ const l=document.createElement('link');l.rel='apple-touch-icon';l.href=c.toDataU
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-const wrap=document.getElementById('wrap'),ov=document.getElementById('ov'),msg=document.getElementById('msg'),stB=document.getElementById('st'),sc=document.getElementById('sc'),bs=document.getElementById('bs');
-let best=0;try{best=+localStorage.getItem('snakeBest')||0}catch(e){}bs.textContent=best;
-if(typeof THREE==='undefined'){msg.textContent='Không tải được đồ hoạ 3D, hãy mở lại khi có mạng';stB.style.display='none'}else{
-const N=17,H=(N-1)/2,W=wrap.clientWidth||340;
-const R=new THREE.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(W,W);R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;wrap.prepend(R.domElement);
-const S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(42,1,0.1,100);cam.position.set(0,19,13);cam.lookAt(0,0,0.8);
-S.add(new THREE.HemisphereLight(0xffffff,0x445533,0.75));
-const L=new THREE.DirectionalLight(0xffffff,0.85);L.position.set(6,14,8);L.castShadow=true;L.shadow.mapSize.set(1024,1024);Object.assign(L.shadow.camera,{left:-11,right:11,top:11,bottom:-11});S.add(L);
-const tc=document.createElement('canvas');tc.width=tc.height=N*16;const g=tc.getContext('2d');
-for(let x=0;x<N;x++)for(let y=0;y<N;y++){g.fillStyle=(x+y)%2?'#9BCB5E':'#8BBE4E';g.fillRect(x*16,y*16,16,16)}
-const tex=new THREE.CanvasTexture(tc);tex.magFilter=THREE.NearestFilter;
-const base=new THREE.Mesh(new THREE.BoxGeometry(N+1,1,N+1),new THREE.MeshStandardMaterial({color:0x6b4a2b,roughness:0.9}));base.position.y=-0.5;S.add(base);
-const top=new THREE.Mesh(new THREE.PlaneGeometry(N,N),new THREE.MeshStandardMaterial({map:tex,roughness:1}));top.rotation.x=-Math.PI/2;top.position.y=0.001;top.receiveShadow=true;S.add(top);
-const rimM=new THREE.MeshStandardMaterial({color:0x8a6239,roughness:0.8});
-[[0,-(H+0.75),N+1,0.5],[0,H+0.75,N+1,0.5],[-(H+0.75),0,0.5,N+1],[H+0.75,0,0.5,N+1]].forEach(([x,z,w,d])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.5,d),rimM);m.position.set(x,0.25,z);m.castShadow=m.receiveShadow=true;S.add(m)});
-const head=new THREE.Group(),headM=new THREE.MeshStandardMaterial({color:0x0F6E56,roughness:0.35});
-const hs=new THREE.Mesh(new THREE.SphereGeometry(0.52,24,18),headM);hs.scale.y=0.85;hs.castShadow=true;head.add(hs);
-const wM=new THREE.MeshStandardMaterial({color:0xffffff}),pM=new THREE.MeshStandardMaterial({color:0x111111});
-[-1,1].forEach(s=>{const e=new THREE.Mesh(new THREE.SphereGeometry(0.14,12,10),wM);e.position.set(s*0.2,0.22,0.32);head.add(e);const p=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8),pM);p.position.set(s*0.2,0.25,0.44);head.add(p)});
-S.add(head);
-const segG=new THREE.SphereGeometry(0.46,20,14),body=[];
-const food=new THREE.Group();
-const ap=new THREE.Mesh(new THREE.SphereGeometry(0.38,24,18),new THREE.MeshStandardMaterial({color:0xE24B4A,roughness:0.3,emissive:0x3a0a0a}));ap.castShadow=true;food.add(ap);
-const stem=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.2),new THREE.MeshStandardMaterial({color:0x5a3a1a}));stem.position.y=0.42;food.add(stem);
-const leaf=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.03,0.12),new THREE.MeshStandardMaterial({color:0x639922}));leaf.position.set(0.1,0.45,0);leaf.rotation.z=0.4;food.add(leaf);S.add(food);
-const parts=[],pG=new THREE.BoxGeometry(0.13,0.13,0.13);
-function burst(x,z){for(let i=0;i<20;i++){const m=new THREE.Mesh(pG,new THREE.MeshStandardMaterial({color:i%2?0xEF9F27:0xE24B4A}));m.position.set(x,0.5,z);const a=Math.random()*Math.PI*2,sp=2+Math.random()*3;m.v=new THREE.Vector3(Math.cos(a)*sp,3+Math.random()*3,Math.sin(a)*sp);m.life=1;S.add(m);parts.push(m)}}
-let cells,prev,dir,next,score=0,speed,acc=0,running=false,fpos;
-function place(){let p;do{p={x:Math.floor(Math.random()*N),y:Math.floor(Math.random()*N)}}while(cells.some(c=>c.x===p.x&&c.y===p.y));fpos=p}
-function syncBody(){while(body.length<cells.length-1){const m=new THREE.Mesh(segG,new THREE.MeshStandardMaterial({roughness:0.35}));m.castShadow=true;S.add(m);body.push(m)}
-while(body.length>cells.length-1)S.remove(body.pop());body.forEach((m,i)=>m.material.color.setHSL(0.45,0.7,i%2?0.34:0.42))}
-function reset(){cells=[{x:8,y:8},{x:7,y:8},{x:6,y:8}];prev=cells.map(c=>({...c}));dir={x:1,y:0};next=dir;score=0;speed=170;acc=0;sc.textContent=0;headM.color.set(0x0F6E56);place();syncBody()}
-function step(){dir=next;const h={x:cells[0].x+dir.x,y:cells[0].y+dir.y};
-if(h.x<0||h.y<0||h.x>=N||h.y>=N||cells.slice(0,-1).some(c=>c.x===h.x&&c.y===h.y))return die();
-const old=cells,eat=h.x===fpos.x&&h.y===fpos.y;cells=[h,...old];if(!eat)cells.pop();
-prev=cells.map((c,i)=>({...(old[i]||old[old.length-1])}));
-if(eat){score++;sc.textContent=score;if(score>best){best=score;bs.textContent=best;try{localStorage.setItem('snakeBest',best)}catch(e){}}burst(fpos.x-H,fpos.y-H);place();speed=Math.max(85,speed-5)}syncBody()}
-function die(){running=false;acc=speed;headM.color.set(0xA32D2D);msg.textContent='Thua rồi! Bạn được '+score+' điểm';stB.textContent='Chơi lại';ov.style.display='flex'}
-function start(){reset();ov.style.display='none';running=true}
-function turn(x,y){if(!running)return;if((x===-dir.x&&y===-dir.y)||(x===dir.x&&y===dir.y))return;next={x,y}}
-stB.onclick=start;
-document.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();const[x,y]=b.dataset.d.split(',').map(Number);turn(x,y)}));
-document.addEventListener('keydown',e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(m){e.preventDefault();turn(...m)}});
-let tx,ty;wrap.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY},{passive:true});
-wrap.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
-wrap.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;Math.abs(dx)>Math.abs(dy)?turn(Math.sign(dx),0):turn(0,Math.sign(dy))});
-reset();
-let last=performance.now(),T=0;
-function loop(now){const dt=Math.min((now-last)/1000,0.05);last=now;T+=dt;
-if(running){acc+=dt*1000;while(running&&acc>=speed){acc-=speed;step()}}
-const k=running?Math.min(acc/speed,1):1;
-const pos=i=>{const p=prev[i],c=cells[i];return[p.x+(c.x-p.x)*k-H,p.y+(c.y-p.y)*k-H]};
-const[hx,hz]=pos(0);head.position.set(hx,0.45+Math.sin(T*6)*0.04,hz);
-const ta=Math.atan2(dir.x,dir.y);let da=ta-head.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));head.rotation.y+=da*Math.min(1,dt*18);
-body.forEach((m,i)=>{const[x,z]=pos(i+1);const s=0.9+0.07*Math.sin(T*8-i*0.7);m.position.set(x,0.4,z);m.scale.set(s,s*0.85,s)});
-food.position.set(fpos.x-H,0.45+Math.sin(T*3)*0.12,fpos.y-H);food.rotation.y+=dt*2;
-for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.v.y-=12*dt;p.position.addScaledVector(p.v,dt);p.rotation.x+=dt*6;p.life-=dt*1.4;p.scale.setScalar(Math.max(p.life,0.01));if(p.life<=0){S.remove(p);parts.splice(i,1)}}
-cam.position.x=Math.sin(T*0.3)*0.6;cam.lookAt(0,0,0.8);
-R.render(S,cam);requestAnimationFrame(loop)}
-requestAnimationFrame(loop)}
-</script>
+<script src="game.js"></script>
 </body>
 </html>
+
